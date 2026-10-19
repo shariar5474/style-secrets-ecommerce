@@ -1,0 +1,95 @@
+import { createServerClient } from '@supabase/ssr';
+import { NextResponse, type NextRequest } from 'next/server';
+
+export async function middleware(request: NextRequest) {
+  let supabaseResponse = NextResponse.next({
+    request,
+  });
+
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll();
+        },
+        setAll(cookiesToSet: Array<{ name: string; value: string; options?: Record<string, unknown> }>) {
+          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
+          supabaseResponse = NextResponse.next({
+            request,
+          });
+          cookiesToSet.forEach(({ name, value, options }) =>
+            supabaseResponse.cookies.set(name, value, options as any)
+          );
+        },
+      },
+    }
+  );
+
+  // Refresh the session
+  const { data: { user } } = await supabase.auth.getUser();
+
+  // Protect admin routes
+  if (request.nextUrl.pathname.startsWith('/admin')) {
+    // Allow access to admin login page
+    if (request.nextUrl.pathname === '/admin/login') {
+      return supabaseResponse;
+    }
+
+    // Allow demo admin session for development/demo mode
+    const demoSession = request.cookies.get('admin_demo_session');
+    if (demoSession?.value === 'true') {
+      return supabaseResponse;
+    }
+
+    if (!user) {
+      const url = request.nextUrl.clone();
+      url.pathname = '/admin/login';
+      return NextResponse.redirect(url);
+    }
+
+    try {
+      // Check if user is admin
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+
+      if (!profile || profile.role !== 'admin') {
+        const url = request.nextUrl.clone();
+        url.pathname = '/admin/login';
+        url.searchParams.set('error', 'unauthorized');
+        return NextResponse.redirect(url);
+      }
+    } catch {
+      // Fallback for demo/development if profiles table query fails
+      return supabaseResponse;
+    }
+  }
+
+  // Protect account routes
+  if (request.nextUrl.pathname.startsWith('/account')) {
+    const customerSession = request.cookies.get('customer_session');
+    if (customerSession?.value) {
+      return supabaseResponse;
+    }
+
+    if (!user) {
+      const url = request.nextUrl.clone();
+      url.pathname = '/auth/login';
+      url.searchParams.set('redirect', request.nextUrl.pathname);
+      return NextResponse.redirect(url);
+    }
+  }
+
+  return supabaseResponse;
+}
+
+export const config = {
+  matcher: [
+    '/admin/:path*',
+    '/account/:path*',
+  ],
+};
