@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import {
@@ -21,18 +21,35 @@ import { DEMO_PRODUCTS } from '@/lib/data/sampleData';
 import { formatPrice, calculateDiscount, getStockStatus } from '@/lib/utils';
 import { useCartStore } from '@/hooks/useCart';
 import ProductCard from '@/components/storefront/ProductCard';
+import type { Product } from '@/types';
 
 export default function ProductDetailPage() {
   const params = useParams();
   const router = useRouter();
   const slug = params?.slug as string;
 
-  // Find product by slug or id
-  const product = useMemo(() => {
+  // Find product by slug or id, initialized with demo fallback
+  const [product, setProduct] = useState<Product>(() => {
     return (
       DEMO_PRODUCTS.find((p) => p.slug === slug || p.id === slug) ||
       DEMO_PRODUCTS[0]
     );
+  });
+
+  useEffect(() => {
+    async function fetchProduct() {
+      try {
+        const res = await fetch('/api/products?status=all');
+        const json = await res.json();
+        if (json.success && Array.isArray(json.products)) {
+          const match = json.products.find((p: any) => p.slug === slug || p.id === slug);
+          if (match) {
+            setProduct(match);
+          }
+        }
+      } catch (err) {}
+    }
+    fetchProduct();
   }, [slug]);
 
   // Extract available attributes (Size, Color, etc.) from variations

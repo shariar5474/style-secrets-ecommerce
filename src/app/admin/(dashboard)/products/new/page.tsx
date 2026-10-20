@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -11,8 +11,10 @@ import {
   Check,
   Sparkles,
   Info,
+  AlertCircle,
 } from 'lucide-react';
 import { DEMO_CATEGORIES } from '@/lib/admin-demo-data';
+import type { Category } from '@/types';
 
 interface VariationRow {
   id: string;
@@ -27,10 +29,27 @@ interface VariationRow {
 export default function AddProductPage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<'general' | 'variations' | 'images' | 'stock'>('general');
+  const [categories, setCategories] = useState<Category[]>(DEMO_CATEGORIES);
+
+  useEffect(() => {
+    async function loadCats() {
+      try {
+        const res = await fetch('/api/categories');
+        const json = await res.json();
+        if (json.success && Array.isArray(json.categories)) {
+          setCategories(json.categories);
+          if (json.categories.length > 0 && !categoryId) {
+            setCategoryId(json.categories[0].id);
+          }
+        }
+      } catch (err) {}
+    }
+    loadCats();
+  }, []);
 
   // Form Fields
   const [productName, setProductName] = useState('Stylish Cotton Kurti');
-  const [categoryId, setCategoryId] = useState(DEMO_CATEGORIES[0]?.id || '');
+  const [categoryId, setCategoryId] = useState('');
   const [regularPrice, setRegularPrice] = useState<number>(1200);
   const [salePrice, setSalePrice] = useState<number>(890);
   const [sku, setSku] = useState('KRT-001');
@@ -47,6 +66,7 @@ export default function AddProductPage() {
 
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
   const addVariation = () => {
     const newId = `var-${Date.now()}`;
@@ -77,13 +97,42 @@ export default function AddProductPage() {
   const handleSaveProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
-    // Simulate save
-    await new Promise((res) => setTimeout(res, 800));
-    setSaving(false);
-    setSaveSuccess(true);
-    setTimeout(() => {
-      router.push('/admin/products');
-    }, 1200);
+    setErrorMessage('');
+
+    try {
+      const res = await fetch('/api/products', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: productName,
+          category_id: categoryId || categories[0]?.id,
+          regular_price: regularPrice,
+          sale_price: salePrice > 0 ? salePrice : null,
+          sku: sku,
+          description: description,
+          short_description: description.slice(0, 120),
+          featured_image_url: featuredImage,
+          is_variable: variations.length > 0,
+          status: 'published',
+        }),
+      });
+
+      const data = await res.json();
+      if (!data.success) {
+        setErrorMessage(data.error || 'Failed to create product in database');
+        setSaving(false);
+        return;
+      }
+
+      setSaving(false);
+      setSaveSuccess(true);
+      setTimeout(() => {
+        router.push('/admin/products');
+      }, 1000);
+    } catch (err: any) {
+      setErrorMessage(err.message || 'Error saving product');
+      setSaving(false);
+    }
   };
 
   return (
@@ -184,9 +233,9 @@ export default function AddProductPage() {
                     onChange={(e) => setCategoryId(e.target.value)}
                     className="input-field text-xs bg-white"
                   >
-                    {DEMO_CATEGORIES.map((c) => (
+                    {categories.map((c) => (
                       <option key={c.id} value={c.id}>
-                        {c.name} ({c.name_bn})
+                        {c.name} {c.name_bn ? `(${c.name_bn})` : ''}
                       </option>
                     ))}
                   </select>
@@ -431,6 +480,13 @@ export default function AddProductPage() {
                 </p>
                 <span className="text-[11px] text-gray-400">Summed across all {variations.length} active variations.</span>
               </div>
+            </div>
+          )}
+
+          {errorMessage && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-xs flex items-center gap-2">
+              <AlertCircle size={16} className="flex-shrink-0" />
+              <span>{errorMessage}</span>
             </div>
           )}
 

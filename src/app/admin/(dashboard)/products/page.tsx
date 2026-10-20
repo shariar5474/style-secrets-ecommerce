@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import {
   Plus,
@@ -12,17 +12,47 @@ import {
   CheckCircle,
   XCircle,
   AlertCircle,
+  Loader2,
 } from 'lucide-react';
 import { DEMO_PRODUCTS, DEMO_CATEGORIES } from '@/lib/admin-demo-data';
 import { formatPrice } from '@/lib/utils';
-import type { Product } from '@/types';
+import type { Product, Category } from '@/types';
 
 export default function AdminProductsPage() {
   const [products, setProducts] = useState<Product[]>(DEMO_PRODUCTS);
+  const [categories, setCategories] = useState<Category[]>(DEMO_CATEGORIES);
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [deleteModalId, setDeleteModalId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  // Load products and categories from Supabase API
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      const [prodRes, catRes] = await Promise.all([
+        fetch('/api/products?status=all'),
+        fetch('/api/categories'),
+      ]);
+      const prodJson = await prodRes.json();
+      if (prodJson.success && Array.isArray(prodJson.products)) {
+        setProducts(prodJson.products);
+      }
+      const catJson = await catRes.json();
+      if (catJson.success && Array.isArray(catJson.categories)) {
+        setCategories(catJson.categories);
+      }
+    } catch (err) {
+      console.error('Error fetching admin products:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+  }, []);
 
   // Filtered products list
   const filteredProducts = useMemo(() => {
@@ -31,32 +61,55 @@ export default function AdminProductsPage() {
         p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         p.sku.toLowerCase().includes(searchQuery.toLowerCase());
       const matchCat =
-        categoryFilter === 'all' || p.category_id === categoryFilter || p.category?.slug === categoryFilter;
+        categoryFilter === 'all' ||
+        p.category_id === categoryFilter ||
+        p.category?.id === categoryFilter ||
+        p.category?.slug === categoryFilter;
       const matchStatus = statusFilter === 'all' || p.status === statusFilter;
       return matchSearch && matchCat && matchStatus;
     });
   }, [products, searchQuery, categoryFilter, statusFilter]);
 
-  const toggleStatus = (id: string) => {
+  const toggleStatus = async (id: string) => {
+    const current = products.find((p) => p.id === id);
+    if (!current) return;
+    const nextStatus = current.status === 'published' ? 'draft' : 'published';
+
+    // Optimistic UI update
     setProducts((prev) =>
-      prev.map((p) => {
-        if (p.id === id) {
-          const nextStatus = p.status === 'published' ? 'draft' : 'published';
-          return { ...p, status: nextStatus };
-        }
-        return p;
-      })
+      prev.map((p) => (p.id === id ? { ...p, status: nextStatus } : p))
     );
+
+    try {
+      await fetch('/api/products', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, status: nextStatus }),
+      });
+    } catch (err) {
+      console.error('Failed to toggle product status:', err);
+      loadData();
+    }
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
+    // Optimistic remove
     setProducts((prev) => prev.filter((p) => p.id !== id));
     setDeleteModalId(null);
+
+    try {
+      await fetch(`/api/products?id=${id}`, {
+        method: 'DELETE',
+      });
+    } catch (err) {
+      console.error('Failed to delete product:', err);
+      loadData();
+    }
   };
 
   return (
     <div className="space-y-6">
-      {/* Top Header matching Mockup Section 3 */}
+      {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <span className="text-xs uppercase tracking-wider text-brand-gold font-bold">Catalog</span>
@@ -64,7 +117,7 @@ export default function AdminProductsPage() {
             Product Management
           </h1>
           <p className="text-xs text-gray-500 mt-1">
-            Manage your ladies fashion items, inventory variations, and prices.
+            Manage your ladies fashion items, inventory variations, and prices in real-time.
           </p>
         </div>
 
@@ -99,7 +152,7 @@ export default function AdminProductsPage() {
             className="text-xs border border-border-subtle rounded-lg px-3 py-2 bg-white text-gray-700 focus:outline-none focus:ring-1 focus:ring-brand-pink"
           >
             <option value="all">All Categories</option>
-            {DEMO_CATEGORIES.map((c) => (
+            {categories.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name}
               </option>
@@ -113,13 +166,13 @@ export default function AdminProductsPage() {
             className="text-xs border border-border-subtle rounded-lg px-3 py-2 bg-white text-gray-700 focus:outline-none focus:ring-1 focus:ring-brand-pink"
           >
             <option value="all">All Status</option>
-            <option value="published">Active</option>
+            <option value="published">Active / Published</option>
             <option value="draft">Draft / Inactive</option>
           </select>
         </div>
       </div>
 
-      {/* Table matching Mockup #3 */}
+      {/* Table */}
       <div className="bg-white rounded-2xl shadow-card border border-border-subtle overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-xs text-left">
@@ -135,90 +188,105 @@ export default function AdminProductsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {filteredProducts.map((p) => {
-                const isActive = p.status === 'published';
-                return (
-                  <tr key={p.id} className="hover:bg-brand-ivory/50 transition-colors">
-                    <td className="px-6 py-3.5">
-                      <div className="w-12 h-14 rounded-lg bg-gray-100 overflow-hidden border border-border-subtle flex-shrink-0">
-                        <img
-                          src={p.featured_image_url || 'https://via.placeholder.com/80'}
-                          alt=""
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                    </td>
-                    <td className="px-6 py-3.5">
-                      <strong className="block text-brand-charcoal font-semibold">{p.name}</strong>
-                      <span className="text-[10px] text-gray-400 font-mono">SKU: {p.sku}</span>
-                      {p.is_variable && (
-                        <span className="ml-2 text-[10px] bg-purple-50 text-purple-600 font-medium px-1.5 py-0.5 rounded">
-                          Variable ({p.variations?.length || 4} variants)
+              {loading ? (
+                <tr>
+                  <td colSpan={7} className="px-6 py-12 text-center text-gray-400">
+                    <Loader2 size={24} className="animate-spin mx-auto mb-2 text-brand-pink" />
+                    Loading products from database...
+                  </td>
+                </tr>
+              ) : filteredProducts.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="px-6 py-12 text-center text-gray-400">
+                    No products found matching filters.
+                  </td>
+                </tr>
+              ) : (
+                filteredProducts.map((p) => {
+                  const isActive = p.status === 'published';
+                  return (
+                    <tr key={p.id} className="hover:bg-brand-ivory/50 transition-colors">
+                      <td className="px-6 py-3.5">
+                        <div className="w-12 h-14 rounded-lg bg-gray-100 overflow-hidden border border-border-subtle flex-shrink-0">
+                          <img
+                            src={p.featured_image_url || 'https://via.placeholder.com/80'}
+                            alt=""
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                      </td>
+                      <td className="px-6 py-3.5">
+                        <strong className="block text-brand-charcoal font-semibold">{p.name}</strong>
+                        <span className="text-[10px] text-gray-400 font-mono">SKU: {p.sku}</span>
+                        {p.is_variable && (
+                          <span className="ml-2 text-[10px] bg-purple-50 text-purple-600 font-medium px-1.5 py-0.5 rounded">
+                            Variable Product
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-6 py-3.5 text-gray-600 font-medium">
+                        {p.category?.name || 'Ladies Wear'}
+                      </td>
+                      <td className="px-6 py-3.5">
+                        <span className="font-bold text-brand-charcoal">
+                          {formatPrice(p.sale_price ?? p.regular_price)}
                         </span>
-                      )}
-                    </td>
-                    <td className="px-6 py-3.5 text-gray-600 font-medium">
-                      {p.category?.name || 'Ladies Wear'}
-                    </td>
-                    <td className="px-6 py-3.5">
-                      <span className="font-bold text-brand-charcoal">
-                        {formatPrice(p.sale_price ?? p.regular_price)}
-                      </span>
-                      {p.sale_price && (
-                        <span className="block text-[10px] text-gray-400 line-through">
-                          {formatPrice(p.regular_price)}
+                        {p.sale_price && (
+                          <span className="block text-[10px] text-gray-400 line-through">
+                            {formatPrice(p.regular_price)}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-6 py-3.5">
+                        <span className={`font-semibold ${
+                          p.total_stock <= 5 ? 'text-red-600 font-bold' : p.total_stock <= 15 ? 'text-amber-600' : 'text-gray-700'
+                        }`}>
+                          {p.total_stock} pcs
                         </span>
-                      )}
-                    </td>
-                    <td className="px-6 py-3.5">
-                      <span className={`font-semibold ${
-                        p.total_stock <= 5 ? 'text-red-600 font-bold' : p.total_stock <= 15 ? 'text-amber-600' : 'text-gray-700'
-                      }`}>
-                        {p.total_stock} pcs
-                      </span>
-                    </td>
-                    <td className="px-6 py-3.5">
-                      <button
-                        onClick={() => toggleStatus(p.id)}
-                        className={`text-[11px] font-semibold px-2.5 py-1 rounded-full flex items-center gap-1 transition-all ${
-                          isActive
-                            ? 'bg-green-100 text-green-700 hover:bg-green-200'
-                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                        }`}
-                      >
-                        {isActive ? <CheckCircle size={12} /> : <XCircle size={12} />}
-                        {isActive ? 'Active' : 'Draft'}
-                      </button>
-                    </td>
-                    <td className="px-6 py-3.5 text-right">
-                      <div className="flex items-center justify-end gap-1.5">
-                        <Link
-                          href={`/products/${p.slug}`}
-                          target="_blank"
-                          className="p-1.5 rounded-lg text-gray-400 hover:text-brand-pink hover:bg-brand-soft-pink/20 transition-colors"
-                          title="View Live"
-                        >
-                          <Eye size={15} />
-                        </Link>
-                        <Link
-                          href={`/admin/products/${p.id}`}
-                          className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
-                          title="Edit"
-                        >
-                          <Edit2 size={15} />
-                        </Link>
+                      </td>
+                      <td className="px-6 py-3.5">
                         <button
-                          onClick={() => setDeleteModalId(p.id)}
-                          className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
-                          title="Delete"
+                          onClick={() => toggleStatus(p.id)}
+                          className={`text-[11px] font-semibold px-2.5 py-1 rounded-full flex items-center gap-1 transition-all cursor-pointer ${
+                            isActive
+                              ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                          }`}
                         >
-                          <Trash2 size={15} />
+                          {isActive ? <CheckCircle size={12} /> : <XCircle size={12} />}
+                          {isActive ? 'Active' : 'Draft'}
                         </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
+                      </td>
+                      <td className="px-6 py-3.5 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <Link
+                            href={`/products/${p.slug}`}
+                            target="_blank"
+                            className="p-1.5 rounded-lg text-gray-400 hover:text-brand-pink hover:bg-brand-soft-pink/20 transition-colors"
+                            title="View Live"
+                          >
+                            <Eye size={15} />
+                          </Link>
+                          <Link
+                            href={`/admin/products/${p.id}`}
+                            className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                            title="Edit"
+                          >
+                            <Edit2 size={15} />
+                          </Link>
+                          <button
+                            onClick={() => setDeleteModalId(p.id)}
+                            className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
+                            title="Delete"
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
             </tbody>
           </table>
         </div>
@@ -233,18 +301,18 @@ export default function AdminProductsPage() {
             </div>
             <h3 className="font-semibold text-brand-charcoal text-base">Delete Product?</h3>
             <p className="text-xs text-gray-500 mt-2">
-              Are you sure you want to remove this product? This action will remove all associated stock and variation data.
+              Are you sure you want to remove this product? This action will remove it permanently.
             </p>
             <div className="flex gap-3 mt-6">
               <button
                 onClick={() => setDeleteModalId(null)}
-                className="btn-secondary flex-1 text-xs py-2"
+                className="btn-secondary flex-1 text-xs py-2 cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 onClick={() => handleDelete(deleteModalId)}
-                className="bg-red-600 text-white font-semibold rounded-lg flex-1 text-xs py-2 hover:bg-red-700 transition-colors"
+                className="bg-red-600 text-white font-semibold rounded-lg flex-1 text-xs py-2 hover:bg-red-700 transition-colors cursor-pointer"
               >
                 Delete
               </button>

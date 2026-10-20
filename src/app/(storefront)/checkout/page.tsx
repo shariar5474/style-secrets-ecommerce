@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -50,19 +50,57 @@ export default function CheckoutPage() {
   const [copiedNumber, setCopiedNumber] = useState(false);
 
   // MFS Account details (configurable in Admin)
-  const paymentAccounts = {
+  const [paymentAccounts, setPaymentAccounts] = useState({
     bkash: { number: '01712345678', type: 'Merchant / Send Money' },
     nagad: { number: '01812345678', type: 'Merchant / Send Money' },
     rocket: { number: '01912345678', type: 'Personal' },
-  };
+  });
+  const [deliverySettings, setDeliverySettings] = useState({
+    insideDhakaFee: 60,
+    outsideDhakaFee: 120,
+    freeShippingThreshold: 1500,
+  });
+
+  useEffect(() => {
+    async function loadConfig() {
+      try {
+        const res = await fetch('/api/settings');
+        const json = await res.json();
+        if (json.success) {
+          if (json.general) {
+            setDeliverySettings({
+              insideDhakaFee: json.general.insideDhakaFee ?? 60,
+              outsideDhakaFee: json.general.outsideDhakaFee ?? 120,
+              freeShippingThreshold: json.general.freeShippingThreshold ?? 1500,
+            });
+          }
+          if (Array.isArray(json.payments)) {
+            const accs: any = { ...paymentAccounts };
+            json.payments.forEach((p: any) => {
+              if (p.method && accs[p.method]) {
+                accs[p.method] = {
+                  number: p.account_number || accs[p.method].number,
+                  type: p.account_type || accs[p.method].type,
+                };
+              }
+            });
+            setPaymentAccounts(accs);
+          }
+        }
+      } catch (err) {}
+    }
+    loadConfig();
+  }, []);
 
   const subtotal = getTotal();
 
-  // Delivery calculation: Dhaka is ৳60, outside Dhaka is ৳120; free if subtotal >= 1500
+  // Delivery calculation from Admin settings
   const deliveryFee = useMemo(() => {
-    if (subtotal >= 1500) return 0;
-    return district.toLowerCase() === 'dhaka' ? 60 : 120;
-  }, [subtotal, district]);
+    if (subtotal >= deliverySettings.freeShippingThreshold) return 0;
+    return district.toLowerCase() === 'dhaka'
+      ? deliverySettings.insideDhakaFee
+      : deliverySettings.outsideDhakaFee;
+  }, [subtotal, district, deliverySettings]);
 
   const grandTotal = Math.max(0, subtotal + deliveryFee - couponDiscount);
 

@@ -1,9 +1,54 @@
-import React from 'react';
+'use client';
+
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { MapPin, Phone, Mail, Clock, Facebook, Instagram, Youtube } from 'lucide-react';
 
+interface StoreInfo {
+  storeAddress: string;
+  contactPhone: string;
+  contactEmail: string;
+  businessHours: string;
+  facebookUrl: string;
+  instagramUrl: string;
+  youtubeUrl: string;
+}
+
+const DEFAULT_STORE_INFO: StoreInfo = {
+  storeAddress: 'House #14, Road #7, Dhanmondi, Dhaka 1205, Bangladesh',
+  contactPhone: '+8801700000000',
+  contactEmail: 'support@stylesecrets.com',
+  businessHours: '10:00 AM - 10:00 PM',
+  facebookUrl: 'https://facebook.com/stylesecretsbd',
+  instagramUrl: 'https://instagram.com/stylesecretsbd',
+  youtubeUrl: 'https://youtube.com/@stylesecretsbd',
+};
+
 export default function Footer() {
+  const [storeInfo, setStoreInfo] = useState<StoreInfo>(DEFAULT_STORE_INFO);
+
+  useEffect(() => {
+    async function loadSettings() {
+      try {
+        const res = await fetch('/api/settings');
+        const json = await res.json();
+        if (json.success && json.general) {
+          setStoreInfo({
+            storeAddress: json.general.storeAddress || DEFAULT_STORE_INFO.storeAddress,
+            contactPhone: json.general.contactPhone || DEFAULT_STORE_INFO.contactPhone,
+            contactEmail: json.general.contactEmail || DEFAULT_STORE_INFO.contactEmail,
+            businessHours: json.general.businessHours || DEFAULT_STORE_INFO.businessHours,
+            facebookUrl: json.general.facebookUrl || DEFAULT_STORE_INFO.facebookUrl,
+            instagramUrl: json.general.instagramUrl || DEFAULT_STORE_INFO.instagramUrl,
+            youtubeUrl: json.general.youtubeUrl || DEFAULT_STORE_INFO.youtubeUrl,
+          });
+        }
+      } catch (err) {}
+    }
+    loadSettings();
+  }, []);
+
   return (
     <footer className="bg-brand-charcoal text-gray-300">
       <div className="max-w-7xl mx-auto px-4 py-12">
@@ -14,11 +59,15 @@ export default function Footer() {
               Your favourite online store for trendy and premium ladies fashion. Shop your style with Style Secrets.
             </p>
             <div className="flex items-center gap-3 mt-4">
-              {[Facebook, Instagram, Youtube].map((Icon, i) => (
-                <a key={i} href="#" className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center hover:bg-brand-pink transition-colors">
-                  <Icon size={14} />
-                </a>
-              ))}
+              <a href={storeInfo.facebookUrl} target="_blank" rel="noopener noreferrer" className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center hover:bg-brand-pink transition-colors">
+                <Facebook size={14} />
+              </a>
+              <a href={storeInfo.instagramUrl} target="_blank" rel="noopener noreferrer" className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center hover:bg-brand-pink transition-colors">
+                <Instagram size={14} />
+              </a>
+              <a href={storeInfo.youtubeUrl} target="_blank" rel="noopener noreferrer" className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center hover:bg-brand-pink transition-colors">
+                <Youtube size={14} />
+              </a>
             </div>
           </div>
           <div>
@@ -40,10 +89,10 @@ export default function Footer() {
           <div>
             <h4 className="text-white font-semibold text-sm mb-4">Contact Info</h4>
             <ul className="space-y-3">
-              <li className="flex items-start gap-2"><MapPin size={14} className="mt-0.5 flex-shrink-0 text-brand-pink" /><span className="text-xs text-gray-400">[Your Address], Chittagong, Bangladesh</span></li>
-              <li className="flex items-center gap-2"><Phone size={14} className="flex-shrink-0 text-brand-pink" /><span className="text-xs text-gray-400">01XXX-XXXXXX</span></li>
-              <li className="flex items-center gap-2"><Mail size={14} className="flex-shrink-0 text-brand-pink" /><span className="text-xs text-gray-400">info@stylesecrets.com</span></li>
-              <li className="flex items-center gap-2"><Clock size={14} className="flex-shrink-0 text-brand-pink" /><span className="text-xs text-gray-400">10:00 AM - 10:00 PM</span></li>
+              <li className="flex items-start gap-2"><MapPin size={14} className="mt-0.5 flex-shrink-0 text-brand-pink" /><span className="text-xs text-gray-400">{storeInfo.storeAddress}</span></li>
+              <li className="flex items-center gap-2"><Phone size={14} className="flex-shrink-0 text-brand-pink" /><span className="text-xs text-gray-400">{storeInfo.contactPhone}</span></li>
+              <li className="flex items-center gap-2"><Mail size={14} className="flex-shrink-0 text-brand-pink" /><span className="text-xs text-gray-400">{storeInfo.contactEmail}</span></li>
+              <li className="flex items-center gap-2"><Clock size={14} className="flex-shrink-0 text-brand-pink" /><span className="text-xs text-gray-400">{storeInfo.businessHours}</span></li>
             </ul>
           </div>
           <div>

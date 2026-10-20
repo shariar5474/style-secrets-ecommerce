@@ -6,14 +6,25 @@ import Autoplay from 'embla-carousel-autoplay';
 import { ChevronLeft, ChevronRight, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 
-const SLIDES = [
+interface CarouselSlide {
+  id: string;
+  label: string;
+  title: string;
+  description: string;
+  buttonText: string;
+  buttonLink: string;
+  bgGradient: string;
+  image: string;
+}
+
+const DEFAULT_SLIDES: CarouselSlide[] = [
   {
     id: '1',
     label: 'NEW COLLECTION',
     title: 'Elegance\nIn Every You',
     description: 'Trendy Outfits for Every Occasion\nBecause Your Style is Our Secret',
     buttonText: 'SHOP NOW',
-    buttonLink: '/categories/new-arrivals',
+    buttonLink: '/categories/salwar-kameez',
     bgGradient: 'from-pink-50 via-rose-50 to-amber-50',
     image: 'https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?auto=format&fit=crop&w=800&q=80',
   },
@@ -23,7 +34,7 @@ const SLIDES = [
     title: 'Celebrate\nWith Grace',
     description: 'Exclusive festive collection\nDesigned to make you shine',
     buttonText: 'EXPLORE NOW',
-    buttonLink: '/categories/saree',
+    buttonLink: '/categories/sarees',
     bgGradient: 'from-rose-50 via-pink-50 to-fuchsia-50',
     image: 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&w=800&q=80',
   },
@@ -33,13 +44,21 @@ const SLIDES = [
     title: 'Up to 40%\nOFF',
     description: 'On selected summer styles\nLimited time offer',
     buttonText: 'SHOP SALE',
-    buttonLink: '/categories/offers',
+    buttonLink: '/products',
     bgGradient: 'from-amber-50 via-orange-50 to-rose-50',
     image: 'https://images.unsplash.com/photo-1594938298603-c8148c4dae35?auto=format&fit=crop&w=800&q=80',
   },
 ];
 
+const GRADIENTS = [
+  'from-pink-50 via-rose-50 to-amber-50',
+  'from-rose-50 via-pink-50 to-fuchsia-50',
+  'from-amber-50 via-orange-50 to-rose-50',
+  'from-purple-50 via-pink-50 to-rose-50',
+];
+
 export default function HeroCarousel() {
+  const [slides, setSlides] = useState<CarouselSlide[]>(DEFAULT_SLIDES);
   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true }, [
     Autoplay({ delay: 5000, stopOnInteraction: false }),
   ]);
@@ -48,6 +67,31 @@ export default function HeroCarousel() {
   const scrollPrev = useCallback(() => emblaApi?.scrollPrev(), [emblaApi]);
   const scrollNext = useCallback(() => emblaApi?.scrollNext(), [emblaApi]);
   const scrollTo = useCallback((index: number) => emblaApi?.scrollTo(index), [emblaApi]);
+
+  useEffect(() => {
+    async function loadHeroSlides() {
+      try {
+        const res = await fetch('/api/banners?type=hero&active=true');
+        const json = await res.json();
+        if (json.success && Array.isArray(json.hero_slides) && json.hero_slides.length > 0) {
+          const mapped: CarouselSlide[] = json.hero_slides.map((s: any, idx: number) => ({
+            id: s.id,
+            label: s.subtitle || 'STYLE SECRETS',
+            title: s.title || 'Elegance In Every You',
+            description: s.description || '',
+            buttonText: s.button_text || 'SHOP NOW',
+            buttonLink: s.button_link || '/products',
+            bgGradient: GRADIENTS[idx % GRADIENTS.length],
+            image: s.image_url || DEFAULT_SLIDES[0].image,
+          }));
+          setSlides(mapped);
+        }
+      } catch (err) {
+        // graceful fallback to default slides
+      }
+    }
+    loadHeroSlides();
+  }, []);
 
   useEffect(() => {
     if (!emblaApi) return;
@@ -60,7 +104,7 @@ export default function HeroCarousel() {
     <section className="relative overflow-hidden">
       <div className="overflow-hidden" ref={emblaRef}>
         <div className="flex">
-          {SLIDES.map((slide) => (
+          {slides.map((slide) => (
             <div
               key={slide.id}
               className={`flex-[0_0_100%] min-w-0 bg-gradient-to-r ${slide.bgGradient}`}
@@ -122,7 +166,7 @@ export default function HeroCarousel() {
 
       {/* Dots */}
       <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-10">
-        {SLIDES.map((_, i) => (
+        {slides.map((_, i) => (
           <button
             key={i}
             onClick={() => scrollTo(i)}

@@ -1,59 +1,26 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { CreditCard, Save, CheckCircle, Smartphone, AlertCircle, Info } from 'lucide-react';
 import { DEMO_PAYMENT_SETTINGS } from '@/lib/admin-demo-data';
 import type { PaymentSetting } from '@/types';
 
 export default function AdminPaymentSettingsPage() {
-  const [payments, setPayments] = useState<PaymentSetting[]>([
-    {
-      id: 'pay-cod',
-      method: 'cod',
-      is_enabled: true,
-      account_number: '01332-852610',
-      account_type: 'Helpline / Confirmation',
-      instructions: 'Pay cash upon delivery at your doorstep across all 64 districts in Bangladesh.',
-      logo_url: null,
-      sort_order: 1,
-      updated_at: new Date().toISOString(),
-    },
-    {
-      id: 'pay-bkash',
-      method: 'bkash',
-      is_enabled: true,
-      account_number: '01712345678',
-      account_type: 'Merchant / Send Money',
-      instructions: 'Go to bKash App > Send Money or Payment > Enter Number > Complete transaction and enter TrxID.',
-      logo_url: null,
-      sort_order: 2,
-      updated_at: new Date().toISOString(),
-    },
-    {
-      id: 'pay-nagad',
-      method: 'nagad',
-      is_enabled: true,
-      account_number: '01812345678',
-      account_type: 'Merchant / Send Money',
-      instructions: 'Go to Nagad App > Send Money > Enter Nagad Number > Provide TrxID at checkout.',
-      logo_url: null,
-      sort_order: 3,
-      updated_at: new Date().toISOString(),
-    },
-    {
-      id: 'pay-rocket',
-      method: 'rocket',
-      is_enabled: true,
-      account_number: '01912345678',
-      account_type: 'Personal Wallet',
-      instructions: 'Send money to Rocket account > Enter 12-digit transaction number at checkout.',
-      logo_url: null,
-      sort_order: 4,
-      updated_at: new Date().toISOString(),
-    },
-  ]);
-
+  const [payments, setPayments] = useState<PaymentSetting[]>(DEMO_PAYMENT_SETTINGS);
   const [savedNotice, setSavedNotice] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function loadPayments() {
+      try {
+        const res = await fetch('/api/settings');
+        const json = await res.json();
+        if (json.success && Array.isArray(json.payments)) {
+          setPayments(json.payments);
+        }
+      } catch (err) {}
+    }
+    loadPayments();
+  }, []);
 
   const handleUpdate = (id: string, field: keyof PaymentSetting, value: any) => {
     setPayments((prev) =>
@@ -61,9 +28,18 @@ export default function AdminPaymentSettingsPage() {
     );
   };
 
-  const handleSaveItem = (method: string) => {
-    setSavedNotice(`Payment configuration for ${method.toUpperCase()} saved successfully!`);
-    setTimeout(() => setSavedNotice(null), 2500);
+  const handleSaveItem = async (method: string) => {
+    try {
+      await fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ payments }),
+      });
+      setSavedNotice(`Payment configuration for ${method.toUpperCase()} saved successfully!`);
+      setTimeout(() => setSavedNotice(null), 2500);
+    } catch (err) {
+      console.error('Failed to save payment settings:', err);
+    }
   };
 
   return (

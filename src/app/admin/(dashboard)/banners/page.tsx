@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus, Edit2, Trash2, Check, X, Image as ImageIcon, ExternalLink, ArrowUp, ArrowDown } from 'lucide-react';
 import { DEMO_HERO_SLIDES, DEMO_PROMO_BANNERS } from '@/lib/admin-demo-data';
 import type { HeroSlide, PromoBanner } from '@/types';
@@ -9,6 +9,23 @@ export default function AdminBannersPage() {
   const [activeTab, setActiveTab] = useState<'hero' | 'promo'>('hero');
   const [heroSlides, setHeroSlides] = useState<HeroSlide[]>(DEMO_HERO_SLIDES);
   const [promoBanners, setPromoBanners] = useState<PromoBanner[]>(DEMO_PROMO_BANNERS);
+
+  const loadBanners = async () => {
+    try {
+      const res = await fetch('/api/banners');
+      const json = await res.json();
+      if (json.success) {
+        if (Array.isArray(json.hero_slides)) setHeroSlides(json.hero_slides);
+        if (Array.isArray(json.promo_banners)) setPromoBanners(json.promo_banners);
+      }
+    } catch (err) {
+      console.error('Failed to load banners:', err);
+    }
+  };
+
+  useEffect(() => {
+    loadBanners();
+  }, []);
 
   // Hero Slide Modal states
   const [heroModalOpen, setHeroModalOpen] = useState(false);
@@ -60,49 +77,52 @@ export default function AdminBannersPage() {
     setHeroModalOpen(true);
   };
 
-  const handleSaveHeroSlide = (e: React.FormEvent) => {
+  const handleSaveHeroSlide = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (editingHeroSlide) {
-      setHeroSlides((prev) =>
-        prev.map((s) =>
-          s.id === editingHeroSlide.id
-            ? {
-                ...s,
-                title: heroTitle,
-                subtitle: heroSubtitle,
-                description: heroDescription,
-                image_url: heroImageUrl,
-                button_text: heroButtonText,
-                button_link: heroButtonLink,
-                is_active: heroIsActive,
-                updated_at: new Date().toISOString(),
-              }
-            : s
-        )
-      );
-    } else {
-      const newSlide: HeroSlide = {
-        id: `slide-${Date.now()}`,
-        title: heroTitle,
-        subtitle: heroSubtitle,
-        description: heroDescription,
-        image_url: heroImageUrl,
-        button_text: heroButtonText,
-        button_link: heroButtonLink,
-        sort_order: heroSlides.length + 1,
-        is_active: heroIsActive,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
-      setHeroSlides((prev) => [...prev, newSlide]);
+    const payload = {
+      type: 'hero',
+      id: editingHeroSlide ? editingHeroSlide.id : undefined,
+      title: heroTitle,
+      subtitle: heroSubtitle,
+      description: heroDescription,
+      image_url: heroImageUrl,
+      button_text: heroButtonText,
+      button_link: heroButtonLink,
+      is_active: heroIsActive,
+      sort_order: heroSlides.length + 1,
+    };
+
+    try {
+      await fetch('/api/banners', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      loadBanners();
+    } catch (err) {
+      console.error('Error saving hero slide:', err);
     }
     setHeroModalOpen(false);
   };
 
-  const toggleHeroActive = (id: string) => {
+  const toggleHeroActive = async (id: string) => {
+    const current = heroSlides.find((s) => s.id === id);
+    if (!current) return;
+    const nextActive = !current.is_active;
+
     setHeroSlides((prev) =>
-      prev.map((s) => (s.id === id ? { ...s, is_active: !s.is_active } : s))
+      prev.map((s) => (s.id === id ? { ...s, is_active: nextActive } : s))
     );
+
+    try {
+      await fetch('/api/banners', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, type: 'hero', is_active: nextActive }),
+      });
+    } catch (err) {
+      loadBanners();
+    }
   };
 
   const moveHeroSlide = (index: number, direction: 'up' | 'down') => {
@@ -112,16 +132,20 @@ export default function AdminBannersPage() {
     const temp = updated[index];
     updated[index] = updated[targetIndex];
     updated[targetIndex] = temp;
-    // update sort orders
     updated.forEach((s, idx) => {
       s.sort_order = idx + 1;
     });
     setHeroSlides(updated);
   };
 
-  const handleDeleteHeroSlide = (id: string) => {
+  const handleDeleteHeroSlide = async (id: string) => {
     if (confirm('Delete this hero slide?')) {
       setHeroSlides((prev) => prev.filter((s) => s.id !== id));
+      try {
+        await fetch(`/api/banners?id=${id}&type=hero`, { method: 'DELETE' });
+      } catch (err) {
+        loadBanners();
+      }
     }
   };
 
@@ -156,60 +180,65 @@ export default function AdminBannersPage() {
     setPromoModalOpen(true);
   };
 
-  const handleSavePromoBanner = (e: React.FormEvent) => {
+  const handleSavePromoBanner = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (editingPromoBanner) {
-      setPromoBanners((prev) =>
-        prev.map((b) =>
-          b.id === editingPromoBanner.id
-            ? {
-                ...b,
-                title: promoTitle,
-                subtitle: promoSubtitle,
-                description: promoDescription,
-                discount_text: promoDiscountText,
-                image_url: promoImageUrl,
-                button_text: promoButtonText,
-                button_link: promoButtonLink,
-                start_date: promoStartDate || null,
-                end_date: promoEndDate || null,
-                is_active: promoIsActive,
-                updated_at: new Date().toISOString(),
-              }
-            : b
-        )
-      );
-    } else {
-      const newBanner: PromoBanner = {
-        id: `banner-${Date.now()}`,
-        title: promoTitle,
-        subtitle: promoSubtitle,
-        description: promoDescription,
-        discount_text: promoDiscountText,
-        image_url: promoImageUrl,
-        button_text: promoButtonText,
-        button_link: promoButtonLink,
-        sort_order: promoBanners.length + 1,
-        is_active: promoIsActive,
-        start_date: promoStartDate || null,
-        end_date: promoEndDate || null,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
-      setPromoBanners((prev) => [...prev, newBanner]);
+    const payload = {
+      type: 'promo',
+      id: editingPromoBanner ? editingPromoBanner.id : undefined,
+      title: promoTitle,
+      subtitle: promoSubtitle,
+      description: promoDescription,
+      discount_text: promoDiscountText,
+      image_url: promoImageUrl,
+      button_text: promoButtonText,
+      button_link: promoButtonLink,
+      start_date: promoStartDate || null,
+      end_date: promoEndDate || null,
+      is_active: promoIsActive,
+      sort_order: promoBanners.length + 1,
+    };
+
+    try {
+      await fetch('/api/banners', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      loadBanners();
+    } catch (err) {
+      console.error('Error saving promo banner:', err);
     }
     setPromoModalOpen(false);
   };
 
-  const togglePromoActive = (id: string) => {
+  const togglePromoActive = async (id: string) => {
+    const current = promoBanners.find((b) => b.id === id);
+    if (!current) return;
+    const nextActive = !current.is_active;
+
     setPromoBanners((prev) =>
-      prev.map((b) => (b.id === id ? { ...b, is_active: !b.is_active } : b))
+      prev.map((b) => (b.id === id ? { ...b, is_active: nextActive } : b))
     );
+
+    try {
+      await fetch('/api/banners', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, type: 'promo', is_active: nextActive }),
+      });
+    } catch (err) {
+      loadBanners();
+    }
   };
 
-  const handleDeletePromoBanner = (id: string) => {
+  const handleDeletePromoBanner = async (id: string) => {
     if (confirm('Delete this promotional banner?')) {
       setPromoBanners((prev) => prev.filter((b) => b.id !== id));
+      try {
+        await fetch(`/api/banners?id=${id}&type=promo`, { method: 'DELETE' });
+      } catch (err) {
+        loadBanners();
+      }
     }
   };
 

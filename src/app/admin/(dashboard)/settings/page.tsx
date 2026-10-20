@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Save, Building2, Phone, Mail, MapPin, Clock, Globe, Truck, ShieldCheck, CheckCircle2 } from 'lucide-react';
 
 export default function AdminSettingsPage() {
   const [savedSuccess, setSavedSuccess] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   // General Settings
   const [storeName, setStoreName] = useState('Style Secrets');
@@ -37,10 +38,86 @@ export default function AdminSettingsPage() {
   const [trustSupportTitle, setTrustSupportTitle] = useState('Dedicated Support');
   const [trustSupportDesc, setTrustSupportDesc] = useState('Friendly assistance via WhatsApp & phone');
 
-  const handleSave = (e: React.FormEvent) => {
+  useEffect(() => {
+    async function loadSettings() {
+      try {
+        const res = await fetch('/api/settings');
+        const json = await res.json();
+        if (json.success && json.general) {
+          const g = json.general;
+          if (g.storeName) setStoreName(g.storeName);
+          if (g.tagline) setTagline(g.tagline);
+          if (g.logoUrl) setLogoUrl(g.logoUrl);
+          if (g.contactPhone) setContactPhone(g.contactPhone);
+          if (g.whatsappNumber) setWhatsappNumber(g.whatsappNumber);
+          if (g.contactEmail) setContactEmail(g.contactEmail);
+          if (g.storeAddress) setStoreAddress(g.storeAddress);
+          if (g.businessHours) setBusinessHours(g.businessHours);
+          if (g.insideDhakaFee !== undefined) setInsideDhakaFee(g.insideDhakaFee);
+          if (g.outsideDhakaFee !== undefined) setOutsideDhakaFee(g.outsideDhakaFee);
+          if (g.freeShippingThreshold !== undefined) setFreeShippingThreshold(g.freeShippingThreshold);
+          if (g.facebookUrl) setFacebookUrl(g.facebookUrl);
+          if (g.instagramUrl) setInstagramUrl(g.instagramUrl);
+          if (g.tiktokUrl) setTiktokUrl(g.tiktokUrl);
+          if (g.youtubeUrl) setYoutubeUrl(g.youtubeUrl);
+          if (g.trustDeliveryTitle) setTrustDeliveryTitle(g.trustDeliveryTitle);
+          if (g.trustDeliveryDesc) setTrustDeliveryDesc(g.trustDeliveryDesc);
+          if (g.trustPaymentTitle) setTrustPaymentTitle(g.trustPaymentTitle);
+          if (g.trustPaymentDesc) setTrustPaymentDesc(g.trustPaymentDesc);
+          if (g.trustReturnTitle) setTrustReturnTitle(g.trustReturnTitle);
+          if (g.trustReturnDesc) setTrustReturnDesc(g.trustReturnDesc);
+          if (g.trustSupportTitle) setTrustSupportTitle(g.trustSupportTitle);
+          if (g.trustSupportDesc) setTrustSupportDesc(g.trustSupportDesc);
+        }
+      } catch (err) {
+        console.error('Failed to load store settings:', err);
+      }
+    }
+    loadSettings();
+  }, []);
+
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSavedSuccess(true);
-    setTimeout(() => setSavedSuccess(false), 3000);
+    setSaving(true);
+    try {
+      await fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          general: {
+            storeName,
+            tagline,
+            logoUrl,
+            contactPhone,
+            whatsappNumber,
+            contactEmail,
+            storeAddress,
+            businessHours,
+            insideDhakaFee,
+            outsideDhakaFee,
+            freeShippingThreshold,
+            facebookUrl,
+            instagramUrl,
+            tiktokUrl,
+            youtubeUrl,
+            trustDeliveryTitle,
+            trustDeliveryDesc,
+            trustPaymentTitle,
+            trustPaymentDesc,
+            trustReturnTitle,
+            trustReturnDesc,
+            trustSupportTitle,
+            trustSupportDesc,
+          },
+        }),
+      });
+      setSavedSuccess(true);
+      setTimeout(() => setSavedSuccess(false), 3000);
+    } catch (err) {
+      console.error('Error saving settings:', err);
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (

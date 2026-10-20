@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus, Edit2, Trash2, Check, X, Search, Image as ImageIcon } from 'lucide-react';
 import { DEMO_CATEGORIES } from '@/lib/admin-demo-data';
 import type { Category } from '@/types';
@@ -9,6 +9,22 @@ export default function AdminCategoriesPage() {
   const [categories, setCategories] = useState<Category[]>(DEMO_CATEGORIES);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
+
+  const loadCategories = async () => {
+    try {
+      const res = await fetch('/api/categories');
+      const json = await res.json();
+      if (json.success && Array.isArray(json.categories)) {
+        setCategories(json.categories);
+      }
+    } catch (err) {
+      console.error('Failed to load categories:', err);
+    }
+  };
+
+  useEffect(() => {
+    loadCategories();
+  }, []);
 
   // Form states
   const [name, setName] = useState('');
@@ -40,45 +56,60 @@ export default function AdminCategoriesPage() {
     setModalOpen(true);
   };
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (editingCategory) {
-      setCategories((prev) =>
-        prev.map((c) =>
-          c.id === editingCategory.id
-            ? { ...c, name, name_bn: nameBn, slug, description, image_url: imageUrl, is_active: isActive }
-            : c
-        )
-      );
-    } else {
-      const newCat: Category = {
-        id: `cat-${Date.now()}`,
-        name,
-        name_bn: nameBn,
-        slug: slug || name.toLowerCase().replace(/\s+/g, '-'),
-        description,
-        image_url: imageUrl,
-        parent_id: null,
-        sort_order: categories.length + 1,
-        is_active: isActive,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        product_count: 0,
-      };
-      setCategories((prev) => [...prev, newCat]);
+    const payload = {
+      id: editingCategory ? editingCategory.id : undefined,
+      name,
+      name_bn: nameBn,
+      slug: slug || name.toLowerCase().replace(/\s+/g, '-'),
+      description,
+      image_url: imageUrl,
+      is_active: isActive,
+      sort_order: categories.length + 1,
+    };
+
+    try {
+      await fetch('/api/categories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      loadCategories();
+    } catch (err) {
+      console.error('Error saving category:', err);
     }
     setModalOpen(false);
   };
 
-  const toggleActive = (id: string) => {
+  const toggleActive = async (id: string) => {
+    const current = categories.find((c) => c.id === id);
+    if (!current) return;
+    const nextActive = !current.is_active;
+
     setCategories((prev) =>
-      prev.map((c) => (c.id === id ? { ...c, is_active: !c.is_active } : c))
+      prev.map((c) => (c.id === id ? { ...c, is_active: nextActive } : c))
     );
+
+    try {
+      await fetch('/api/categories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...current, is_active: nextActive }),
+      });
+    } catch (err) {
+      loadCategories();
+    }
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (confirm('Are you sure you want to remove this category?')) {
       setCategories((prev) => prev.filter((c) => c.id !== id));
+      try {
+        await fetch(`/api/categories?id=${id}`, { method: 'DELETE' });
+      } catch (err) {
+        loadCategories();
+      }
     }
   };
 

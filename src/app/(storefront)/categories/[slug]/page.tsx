@@ -1,15 +1,39 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { ChevronRight, SlidersHorizontal, ArrowUpDown } from 'lucide-react';
 import { DEMO_CATEGORIES, DEMO_PRODUCTS } from '@/lib/data/sampleData';
 import ProductCard from '@/components/storefront/ProductCard';
+import type { Product, Category } from '@/types';
 
 export default function CategoryPage() {
   const params = useParams();
   const slug = params?.slug as string;
+
+  const [categoriesList, setCategoriesList] = useState<Category[]>(DEMO_CATEGORIES);
+  const [productsList, setProductsList] = useState<Product[]>(DEMO_PRODUCTS);
+
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const [catRes, prodRes] = await Promise.all([
+          fetch('/api/categories'),
+          fetch('/api/products?status=published'),
+        ]);
+        const catJson = await catRes.json();
+        if (catJson.success && Array.isArray(catJson.categories)) {
+          setCategoriesList(catJson.categories);
+        }
+        const prodJson = await prodRes.json();
+        if (prodJson.success && Array.isArray(prodJson.products)) {
+          setProductsList(prodJson.products);
+        }
+      } catch (err) {}
+    }
+    loadData();
+  }, []);
 
   const currentCategory = useMemo(() => {
     if (!slug || slug === 'all') {
@@ -22,7 +46,7 @@ export default function CategoryPage() {
       };
     }
     return (
-      DEMO_CATEGORIES.find((c) => c.slug === slug) || {
+      categoriesList.find((c) => c.slug === slug) || {
         id: slug,
         name: slug.replace(/-/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase()),
         name_bn: '',
@@ -30,21 +54,30 @@ export default function CategoryPage() {
         description: 'Exclusive ladies collection designed for elegance and festive charm.',
       }
     );
-  }, [slug]);
+  }, [slug, categoriesList]);
 
   const [sortBy, setSortBy] = useState<'featured' | 'price-low' | 'price-high' | 'newest'>('featured');
   const [priceFilter, setPriceFilter] = useState<number>(10000);
 
   // Filter products by category
   const filteredProducts = useMemo(() => {
-    let list = [...DEMO_PRODUCTS];
+    let list = [...productsList];
     if (slug && slug !== 'all') {
-      list = list.filter((p) => {
-        const catSlug = p.category?.slug || '';
-        return catSlug === slug || p.category_id?.includes(slug);
+      const slugLower = slug.toLowerCase();
+      const matched = list.filter((p) => {
+        const catSlug = p.category?.slug?.toLowerCase() || '';
+        const catName = p.category?.name?.toLowerCase() || '';
+        const pCatId = p.category_id || '';
+        return (
+          catSlug === slugLower ||
+          catName === slugLower ||
+          catName.includes(slugLower) ||
+          pCatId === slug
+        );
       });
-      // If none matched, fallback to all so the category page isn't totally blank in demo
-      if (list.length === 0) list = [...DEMO_PRODUCTS];
+      if (matched.length > 0) {
+        list = matched;
+      }
     }
 
     list = list.filter((p) => (p.sale_price ?? p.regular_price) <= priceFilter);
@@ -58,7 +91,7 @@ export default function CategoryPage() {
     }
 
     return list;
-  }, [slug, sortBy, priceFilter]);
+  }, [slug, sortBy, priceFilter, productsList]);
 
   return (
     <div className="bg-brand-ivory min-h-screen py-8">
