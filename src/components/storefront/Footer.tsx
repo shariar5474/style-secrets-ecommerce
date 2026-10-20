@@ -48,9 +48,27 @@ export default function Footer() {
           </div>
           <div>
             <h4 className="text-white font-semibold text-sm mb-4">Payment Methods</h4>
-            <div className="space-y-2">
-              {[{n:'Cash On Delivery',c:'bg-green-600'},{n:'bKash',c:'bg-pink-600'},{n:'Nagad',c:'bg-orange-500'},{n:'Rocket',c:'bg-purple-600'}].map(({n,c})=>(
-                <div key={n} className="flex items-center gap-2"><div className={`w-6 h-4 rounded ${c}`}/><span className="text-xs text-gray-400">{n}</span></div>
+            <div className="space-y-2.5">
+              {[
+                { n: 'bKash', logo: '/images/payments/bkash.svg' },
+                { n: 'Nagad', logo: '/images/payments/nagad.svg' },
+                { n: 'Rocket', logo: '/images/payments/rocket.svg' },
+                { n: 'Cash On Delivery', logo: '/images/payments/cod.svg' },
+              ].map(({ n, logo }) => (
+                <div key={n} className="flex items-center gap-2.5 group">
+                  <div className="w-12 h-6 rounded bg-white p-0.5 flex items-center justify-center shadow-xs overflow-hidden border border-white/20 transition-transform group-hover:scale-105">
+                    <Image
+                      src={logo}
+                      alt={n}
+                      width={48}
+                      height={24}
+                      className="w-full h-full object-contain"
+                    />
+                  </div>
+                  <span className="text-xs text-gray-300 group-hover:text-white transition-colors">
+                    {n}
+                  </span>
+                </div>
               ))}
             </div>
           </div>

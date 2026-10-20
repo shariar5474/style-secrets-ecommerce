@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 48" fill="none">
+  <rect width="120" height="48" rx="8" fill="#FFFFFF"/>
+  <rect x="0.5" y="0.5" width="119" height="47" rx="7.5" stroke="#FCE4EC"/>
+  <!-- bKash bird origami icon -->
+  <g transform="translate(10, 8)">
+    <polygon points="14,1 0,16 11,18" fill="#DF146E"/>
+    <polygon points="14,1 11,18 20,20" fill="#B31057"/>
+    <polygon points="14,1 20,20 28,11" fill="#E2136E"/>
+    <polygon points="20,20 28,11 31,17" fill="#C2185B"/>
+    <polygon points="20,20 31,17 24,25" fill="#E91E63"/>
+    <polygon points="24,25 31,17 33,28" fill="#880E4F"/>
+    <polygon points="11,18 20,20 18,29 11,25" fill="#C2185B"/>
+    <polygon points="11,18 0,16 6,23" fill="#E91E63"/>
+  </g>
+  <!-- bKash text -->
+  <text x="50" y="31" font-family="'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" font-size="20" font-weight="800" fill="#DF146E" letter-spacing="-0.5">bKash</text>
+</svg>

@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 48" fill="none">
+  <rect width="120" height="48" rx="8" fill="#FFFFFF"/>
+  <rect x="0.5" y="0.5" width="119" height="47" rx="7.5" stroke="#FFE0B2"/>
+  <!-- Nagad Swirl/Flame icon -->
+  <g transform="translate(10, 8)">
+    <path d="M14 4C8 4 3 9 3 16C3 23 8 28 15 28C22 28 27 23 27 16C27 12 25 9 22 7C20 11 17 14 13 14C10 14 8 12 8 9C8 6 10 4 14 4Z" fill="#F7941D"/>
+    <path d="M15 8C12 8 9 10 9 13C9 15 11 17 13 17C16 17 19 14 20 11C18 9 16 8 15 8Z" fill="#E31A22"/>
+    <path d="M16 17C14 17 12 18 12 20C12 22 14 24 17 24C20 24 23 21 23 18C21 17 18 17 16 17Z" fill="#F7941D"/>
+  </g>
+  <!-- Nagad text -->
+  <text x="44" y="31" font-family="'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" font-size="19" font-weight="800" fill="#E31A22" letter-spacing="-0.3">Nagad</text>
+</svg>
