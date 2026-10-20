@@ -62,6 +62,22 @@ export default function Footer() {
           <p className="text-xs text-brand-gold font-display italic">Shop Your Style</p>
         </div>
       </div>
+      <div className="border-t border-white/5 bg-black/30 py-3">
+        <div className="max-w-7xl mx-auto px-4 text-center">
+          <p className="text-[11px] text-gray-400 tracking-wide">
+            Developed By{' '}
+            <a
+              href="https://www.facebook.com/shariarislamfm"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Visit Shariar Islam Sohel on Facebook"
+              className="text-brand-gold font-medium hover:text-brand-pink transition-colors duration-200 hover:underline underline-offset-4"
+            >
+              Shariar Islam Sohel
+            </a>
+          </p>
+        </div>
+      </div>
     </footer>
   );
 }
