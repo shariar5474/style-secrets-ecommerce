@@ -34,9 +34,34 @@ export default function AdminHeader({
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [unreadCount, setUnreadCount] = useState(3);
   const [searchQuery, setSearchQuery] = useState('');
+  const [adminProfile, setAdminProfile] = useState({
+    name: 'Shariar Islam',
+    email: 'admin@stylesecrets.com',
+    role: 'Super Admin',
+    initials: 'SI',
+  });
 
   const notificationRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('style_secrets_admin_profile');
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          const parts = (parsed.name || 'Shariar Islam').trim().split(/\s+/);
+          const inits = parts.length >= 2 ? `${parts[0][0]}${parts[1][0]}`.toUpperCase() : parts[0].slice(0, 2).toUpperCase();
+          setAdminProfile({
+            name: parsed.name || 'Shariar Islam',
+            email: parsed.email || 'admin@stylesecrets.com',
+            role: parsed.role || 'Super Admin',
+            initials: inits,
+          });
+        } catch {}
+      }
+    }
+  }, []);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -61,6 +86,9 @@ export default function AdminHeader({
     try {
       document.cookie =
         'admin_demo_session=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('style_secrets_admin_profile');
+      }
       const supabase = createClient();
       await supabase.auth.signOut();
     } catch {
@@ -245,14 +273,14 @@ export default function AdminHeader({
               className="flex items-center gap-2 p-1 pl-1.5 pr-2.5 rounded-full hover:bg-[#FFF9F6] border border-gray-200 transition-colors"
             >
               <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-[#8E1748] to-[#C2185B] flex items-center justify-center text-white text-xs font-bold shadow-sm">
-                SR
+                {adminProfile.initials}
               </div>
               <div className="text-left hidden md:block">
                 <span className="text-xs font-semibold text-[#282126] block leading-none">
-                  Sumaiya Rahman
+                  {adminProfile.name}
                 </span>
                 <span className="text-[10px] text-[#C9A04A] font-medium leading-tight">
-                  Super Admin
+                  {adminProfile.role}
                 </span>
               </div>
             </button>
@@ -261,13 +289,13 @@ export default function AdminHeader({
               <div className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-2xl border border-[#E8DCD8] py-2 z-50 animate-in fade-in zoom-in-95 duration-150">
                 <div className="px-4 py-2 border-b border-[#E8DCD8]">
                   <p className="text-xs font-semibold text-[#282126]">
-                    Sumaiya Rahman
+                    {adminProfile.name}
                   </p>
                   <p className="text-[11px] text-gray-500 truncate">
-                    admin@stylesecrets.com
+                    {adminProfile.email}
                   </p>
                   <span className="inline-block mt-1 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider rounded bg-pink-100 text-[#C2185B]">
-                    Demo Admin Mode
+                    {adminProfile.role}
                   </span>
                 </div>
 

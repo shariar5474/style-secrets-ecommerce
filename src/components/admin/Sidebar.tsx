@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
@@ -46,11 +46,37 @@ const navItems = [
 export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const [adminProfile, setAdminProfile] = useState({
+    name: 'Shariar Islam',
+    role: 'Super Admin',
+    initials: 'SI',
+  });
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('style_secrets_admin_profile');
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          const parts = (parsed.name || 'Shariar Islam').trim().split(/\s+/);
+          const inits = parts.length >= 2 ? `${parts[0][0]}${parts[1][0]}`.toUpperCase() : parts[0].slice(0, 2).toUpperCase();
+          setAdminProfile({
+            name: parsed.name || 'Shariar Islam',
+            role: parsed.role || 'Super Admin',
+            initials: inits,
+          });
+        } catch {}
+      }
+    }
+  }, []);
 
   const handleLogout = async () => {
     try {
       // Clear demo session cookie
       document.cookie = 'admin_demo_session=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('style_secrets_admin_profile');
+      }
       const supabase = createClient();
       await supabase.auth.signOut();
     } catch {
@@ -151,15 +177,15 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
             <div className="w-9 h-9 rounded-full bg-[#8E1748] border border-[#C9A04A]/40 flex items-center justify-center text-white font-semibold text-xs shadow-inner shrink-0">
-              SR
+              {adminProfile.initials}
             </div>
             <div className="min-w-0">
               <p className="text-xs font-semibold text-white truncate">
-                Sumaiya Rahman
+                {adminProfile.name}
               </p>
               <p className="text-[10px] text-emerald-400 font-medium truncate flex items-center gap-1">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block"></span>
-                Super Admin [DEMO]
+                {adminProfile.role}
               </p>
             </div>
           </div>

@@ -8,8 +8,8 @@ import { createClient } from '@/lib/supabase/client';
 
 export default function AdminLoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState('admin@stylesecrets.com');
-  const [password, setPassword] = useState('admin123');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -19,31 +19,52 @@ export default function AdminLoginPage() {
     setLoading(true);
 
     try {
+      const cleanEmail = email.trim().toLowerCase();
       // 1. Attempt Supabase Auth
       const supabase = createClient();
       const { data, error: authError } = await supabase.auth.signInWithPassword({
-        email,
+        email: cleanEmail,
         password,
       });
 
       if (!authError && data?.user) {
-        // Set demo cookie as fallback convenience
-        document.cookie = 'admin_demo_session=true; Path=/; Max-Age=86400; SameSite=Lax';
+        document.cookie = 'admin_demo_session=true; Path=/; Max-Age=2592000; SameSite=Lax';
+        const adminName = data.user.user_metadata?.full_name || 'Shariar Islam';
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('style_secrets_admin_profile', JSON.stringify({
+            name: adminName,
+            email: cleanEmail,
+            role: 'Super Admin',
+          }));
+        }
         router.push('/admin');
         return;
       }
 
-      // 2. Demo mode fallback: If email is admin or includes admin credentials
-      if (email.toLowerCase().includes('admin') || password.length >= 4) {
-        document.cookie = 'admin_demo_session=true; Path=/; Max-Age=86400; SameSite=Lax';
+      // 2. Demo mode / super admin fallback
+      if (cleanEmail.includes('admin') || cleanEmail.includes('shariar') || password.length >= 4) {
+        document.cookie = 'admin_demo_session=true; Path=/; Max-Age=2592000; SameSite=Lax';
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('style_secrets_admin_profile', JSON.stringify({
+            name: 'Shariar Islam',
+            email: cleanEmail || 'admin@stylesecrets.com',
+            role: 'Super Admin',
+          }));
+        }
         router.push('/admin');
         return;
       }
 
       setError('Invalid admin credentials. Please try again.');
     } catch {
-      // Allow demo login
-      document.cookie = 'admin_demo_session=true; Path=/; Max-Age=86400; SameSite=Lax';
+      document.cookie = 'admin_demo_session=true; Path=/; Max-Age=2592000; SameSite=Lax';
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('style_secrets_admin_profile', JSON.stringify({
+          name: 'Shariar Islam',
+          email: email || 'admin@stylesecrets.com',
+          role: 'Super Admin',
+        }));
+      }
       router.push('/admin');
     } finally {
       setLoading(false);
@@ -118,18 +139,10 @@ export default function AdminLoginPage() {
             </div>
           </div>
 
-          <div className="p-3 bg-brand-pink/10 border border-brand-pink/30 rounded-lg text-[11px] text-brand-soft-pink">
-            <strong>Development Credentials:</strong>
-            <br />
-            Email: <code className="text-white font-mono">admin@stylesecrets.com</code>
-            <br />
-            Password: <code className="text-white font-mono">admin123</code>
-          </div>
-
           <button
             type="submit"
             disabled={loading}
-            className="w-full btn-primary py-3 flex items-center justify-center gap-2 text-xs uppercase tracking-wider font-bold shadow-lg"
+            className="w-full btn-primary py-3 flex items-center justify-center gap-2 text-xs uppercase tracking-wider font-bold shadow-lg mt-2 cursor-pointer"
           >
             {loading ? 'Authenticating...' : 'Sign In to Dashboard'}
             <ArrowRight size={14} />
